@@ -31,6 +31,7 @@ export default function Otp() {
         localStorage.setItem("fullname", "Kunal Labdhi");
         localStorage.setItem("role", "FIU Customer");
         localStorage.setItem("consentId", consentHandle);
+        localStorage.setItem("camsConsent", "true");
         navigate("/dashboard");
         return;
       }

@@ -1,69 +1,88 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import axios from "axios";
+
+const API = "http://localhost:5000";
 
 export default function Login() {
   const navigate = useNavigate();
 
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
+  const [username, setUsername] = useState("kunalr@labdhi.in");
+  const [password, setPassword] = useState("Admin@12");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
     setError("");
-    setLoading(true);
 
-    // Fixed Login Credentials
-    const validUsername = "kunalr@labdhi.in";
-    const validPassword = "Admin@12";
-
-    if (
-      username.trim() === validUsername &&
-      password === validPassword
-    ) {
-      // Session Save
-      localStorage.setItem("userId", validUsername);
-      localStorage.setItem("fullname", "Kunal Labdhi");
-      localStorage.setItem("isLoggedIn", "true");
-
-      // Redirect to CAMS Page
-      navigate("/cams");
-    } else {
-      setError("Invalid Username or Password");
+    if (!username || !password) {
+      setError("Please enter CAMS username and password");
+      return;
     }
 
-    setLoading(false);
+    try {
+      setLoading(true);
+
+      const { data } = await axios.post(`${API}/api/auth/login`, {
+        username: username.trim(),
+        password,
+      });
+
+      if (!data.success) {
+        setError(data.message || "CAMS Login Failed");
+        return;
+      }
+
+      const cams = data.data || {};
+
+      localStorage.setItem("userId", cams.userId || username.trim());
+      localStorage.setItem("camsSessionId", cams.sessionId || "");
+      localStorage.setItem("camsRedirectUrl", cams.redirectUrl || "");
+      localStorage.setItem(
+        "camsHandle",
+        cams.aaCustomerHandleId || ""
+      );
+
+      navigate("/cams");
+    } catch (err) {
+      setError(
+        err.response?.data?.message ||
+          "Unable to connect to CAMS backend"
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <div className="login-page">
       <div className="login-card">
+        <div className="logo">C</div>
 
-        <div className="logo">L</div>
-
-        <h1 className="title">Labdhi Banking</h1>
+        <h1 className="title">CAMS Login</h1>
 
         <p className="subtitle">
-          Secure sign in using your CAMS credentials
+          Authenticate with your CAMS FIU account
         </p>
 
         <form className="login-form" onSubmit={handleLogin}>
-
           <input
             type="email"
             className="input"
-            placeholder="Username"
+            placeholder="CAMS Username"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
+            required
           />
 
           <input
             type="password"
             className="input"
-            placeholder="Password"
+            placeholder="CAMS Password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            required
           />
 
           <button
@@ -71,19 +90,15 @@ export default function Login() {
             className="btn"
             disabled={loading}
           >
-            {loading ? "Signing In..." : "Sign In"}
+            {loading ? "Connecting..." : "Continue to CAMS"}
           </button>
 
-          {error && (
-            <p className="error-message">{error}</p>
-          )}
-
+          {error && <p className="error-message">{error}</p>}
         </form>
 
         <p className="footer-text">
-          Protected by CAMS • End-to-End Secure
+          CAMS UAT • Secure Authentication
         </p>
-
       </div>
     </div>
   );

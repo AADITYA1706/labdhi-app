@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import { useNavigate } from "react-router-dom";
 
 export default function Cams() {
   const navigate = useNavigate();
@@ -9,46 +9,59 @@ export default function Cams() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const handleContinue = async (e) => {
+  const continueToCAMS = async (e) => {
     e.preventDefault();
     setError("");
 
     if (mobile.length !== 10) {
-      setError("Please enter a valid 10 digit mobile number");
+      setError("Enter your registered mobile number");
       return;
     }
 
     try {
       setLoading(true);
 
+      const userId = localStorage.getItem("userId");
+
       const res = await axios.post(
         "http://localhost:5000/api/cams/redirect",
         {
           fiuID: "Labdhi_UAT",
-          userId: localStorage.getItem("userId"),
+          userId,
           aaCustomerMobile: mobile,
           aaCustomerHandleId: `${mobile}@CAMSAA`,
           useCaseid: "1656",
         }
       );
 
-      if (res.data.success) {
-        localStorage.setItem("mobile", mobile);
-        localStorage.setItem("sessionId", res.data.sessionId || "");
-        localStorage.setItem(
-          "consentHandle",
-          res.data.consentHandle || ""
-        );
-
-        // Open Real CAMS Page
-        window.location.href = res.data.redirectionurl;
-      } else {
-        setError(res.data.message || "Unable to open CAMS");
+      if (!res.data) {
+        throw new Error("Unable to connect CAMS");
       }
+
+      const redirectUrl = res.data.redirectionurl;
+
+      if (!redirectUrl) {
+        throw new Error("CAMS did not return a consent URL");
+      }
+
+      localStorage.setItem("mobile", mobile);
+      localStorage.setItem("sessionId", res.data.sessionId);
+      localStorage.setItem("consentHandle", res.data.consentHandle);
+      localStorage.setItem("redirectUrl", redirectUrl);
+      localStorage.setItem("camsData", JSON.stringify({
+        userId,
+        sessionId: res.data.sessionId,
+        consentHandle: res.data.consentHandle,
+        redirectionurl: redirectUrl,
+        aaCustomerMobile: mobile,
+        aaCustomerHandleId: `${mobile}@CAMSAA`,
+        txnId: res.data.txnId,
+      }));
+
+      window.location.assign(redirectUrl);
     } catch (err) {
-      console.error(err);
       setError(
-        err.response?.data?.message || "CAMS server connection failed"
+        err.response?.data?.message || "Unable to connect CAMS"
       );
     } finally {
       setLoading(false);
@@ -58,7 +71,8 @@ export default function Cams() {
   return (
     <div className="login-page">
       <div className="login-card">
-        <div className="logo">C</div>
+
+        <div className="logo">L</div>
 
         <h1 className="title">CAMS Finserv</h1>
 
@@ -66,7 +80,8 @@ export default function Cams() {
           Enter your registered mobile number to continue
         </p>
 
-        <form className="login-form" onSubmit={handleContinue}>
+        <form className="login-form" onSubmit={continueToCAMS}>
+
           <input
             type="tel"
             className="input"
@@ -78,13 +93,14 @@ export default function Cams() {
             }
           />
 
-          <button type="submit" className="btn" disabled={loading}>
-            {loading ? "Opening CAMS..." : "Continue to CAMS"}
+          <button className="btn" disabled={loading}>
+            {loading ? "Connecting..." : "Continue to CAMS"}
           </button>
 
           {error && (
             <p className="error-message">{error}</p>
           )}
+
         </form>
 
         <button
@@ -94,12 +110,9 @@ export default function Cams() {
             navigate("/");
           }}
         >
-          Back to Login
+          Back
         </button>
 
-        <p className="footer-text">
-          Secured by CAMS Finserv UAT
-        </p>
       </div>
     </div>
   );

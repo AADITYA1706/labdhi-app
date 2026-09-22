@@ -14,11 +14,9 @@ router.post("/redirect", async (req, res) => {
       useCaseid,
     } = req.body;
 
-    /* =========================
-       STEP 1 : Authentication
-    ========================== */
+    /* ---------------- Authentication ---------------- */
 
-    const authResponse = await axios.post(
+    const auth = await axios.post(
       `${process.env.CAMS_BASE_URL}/api/FIU/Authentication`,
       {
         fiuID: process.env.CAMS_FIU_ID,
@@ -27,21 +25,19 @@ router.post("/redirect", async (req, res) => {
       }
     );
 
-    const token = authResponse.data.token;
-    const sessionId = authResponse.data.sessionId;
+    const token = auth.data.token;
+    const sessionId = auth.data.sessionId;
 
-    /* =========================
-       STEP 2 : RedirectAA
-    ========================== */
+    /* ---------------- RedirectAA ---------------- */
 
-    const redirectResponse = await axios.post(
+    const redirect = await axios.post(
       `${process.env.CAMS_BASE_URL}/api/FIU/RedirectAA`,
       {
         clienttrnxid: crypto.randomUUID(),
         fiuID,
         userId,
-        aaCustomerHandleId,
         aaCustomerMobile,
+        aaCustomerHandleId,
         sessionId,
         useCaseid,
         fipid: "",
@@ -58,20 +54,17 @@ router.post("/redirect", async (req, res) => {
       success: true,
       statusCode: 200,
       sessionId,
-      consentHandle: redirectResponse.data.consentHandle,
-      redirectionurl: redirectResponse.data.redirectionurl,
-      txnId: redirectResponse.data.txnid,
+      consentHandle: redirect.data.consentHandle,
+      redirectionurl: redirect.data.redirectionurl,
+      txnId: redirect.data.txnid,
     });
   } catch (err) {
-    console.error(
-      err.response?.data || err.message
-    );
+    console.error("CAMS ERROR:", err.response?.data || err.message);
 
     return res.status(500).json({
       success: false,
       message:
-        err.response?.data?.message ||
-        "CAMS Redirect Failed",
+        err.response?.data?.message || "CAMS Redirect Failed",
     });
   }
 });

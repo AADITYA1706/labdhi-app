@@ -6,45 +6,55 @@ import {
   useNavigate,
 } from "react-router-dom";
 
+import EmployeeLogin from "./pages/EmployeeLogin";
+import Signup from "./pages/Signup";
 import Login from "./pages/login";
-import Cams from "./pages/Cams";
+import Cams from "./pages/cams";
+import Otp from "./pages/otp";
 import Dashboard from "./pages/Dashboard";
 import Banking from "./pages/Banking";
 import Insurance from "./pages/Insurance";
 
 import "./App.css";
 
-/* ---------------- Login Protection ---------------- */
+/* ================= Employee Protection ================= */
 
-function LoginProtected({ children }) {
-  const user = localStorage.getItem("userId");
+function EmployeeProtected({ children }) {
+  const employee = localStorage.getItem("employeeLoggedIn");
 
-  if (!user) return <Navigate to="/" replace />;
+  if (!employee) {
+    return <Navigate to="/employee-login" replace />;
+  }
 
   return children;
 }
 
-/* ---------------- CAMS Protection ---------------- */
+/* ================= CAMS Consent Protection ================= */
 
-function DashboardProtected({ children }) {
+function ConsentProtected({ children }) {
   const consent = localStorage.getItem("camsConsent");
 
-  if (!consent) return <Navigate to="/cams" replace />;
+  if (!consent) {
+    return <Navigate to="/cams" replace />;
+  }
 
   return children;
 }
 
-/* ---------------- Sidebar ---------------- */
+/* ================= Sidebar ================= */
 
 function AppShell({ children }) {
   const navigate = useNavigate();
 
   const fullname =
-    localStorage.getItem("fullname") || "Kunal Labdhi";
+    localStorage.getItem("fullname") || "Employee";
+
+  const department =
+    localStorage.getItem("department") || "Department";
 
   const logout = () => {
     localStorage.clear();
-    navigate("/");
+    navigate("/employee-login");
   };
 
   return (
@@ -93,7 +103,7 @@ function AppShell({ children }) {
 
           <div>
             <strong>{fullname}</strong>
-            <small>FIU Customer</small>
+            <small>{department} Department</small>
           </div>
         </div>
 
@@ -107,22 +117,53 @@ function AppShell({ children }) {
   );
 }
 
-/* ---------------- App ---------------- */
+/* ================= Main App ================= */
 
 export default function App() {
   return (
     <Routes>
+      {/* Employee Login */}
+      <Route
+        path="/employee-login"
+        element={<EmployeeLogin />}
+      />
 
-      {/* Login */}
-      <Route path="/" element={<Login />} />
+      {/* Employee Signup */}
+      <Route path="/signup" element={<Signup />} />
 
-      {/* CAMS Consent Page */}
+      {/* Default */}
+      <Route
+        path="/"
+        element={<Navigate to="/employee-login" replace />}
+      />
+
+      {/* CAMS Login */}
+      <Route
+        path="/cams-login"
+        element={
+          <EmployeeProtected>
+            <Login />
+          </EmployeeProtected>
+        }
+      />
+
+      {/* Mobile Number */}
       <Route
         path="/cams"
         element={
-          <LoginProtected>
+          <EmployeeProtected>
             <Cams />
-          </LoginProtected>
+          </EmployeeProtected>
+        }
+      />
+
+      {/* OTP */}
+      <Route
+        path="/otp"
+        element={
+          <EmployeeProtected>
+            <Otp />
+          </EmployeeProtected>
         }
       />
 
@@ -130,13 +171,13 @@ export default function App() {
       <Route
         path="/dashboard"
         element={
-          <LoginProtected>
-            <DashboardProtected>
+          <EmployeeProtected>
+            <ConsentProtected>
               <AppShell>
                 <Dashboard />
               </AppShell>
-            </DashboardProtected>
-          </LoginProtected>
+            </ConsentProtected>
+          </EmployeeProtected>
         }
       />
 
@@ -144,13 +185,13 @@ export default function App() {
       <Route
         path="/banking"
         element={
-          <LoginProtected>
-            <DashboardProtected>
+          <EmployeeProtected>
+            <ConsentProtected>
               <AppShell>
                 <Banking />
               </AppShell>
-            </DashboardProtected>
-          </LoginProtected>
+            </ConsentProtected>
+          </EmployeeProtected>
         }
       />
 
@@ -158,19 +199,21 @@ export default function App() {
       <Route
         path="/insurance"
         element={
-          <LoginProtected>
-            <DashboardProtected>
+          <EmployeeProtected>
+            <ConsentProtected>
               <AppShell>
                 <Insurance />
               </AppShell>
-            </DashboardProtected>
-          </LoginProtected>
+            </ConsentProtected>
+          </EmployeeProtected>
         }
       />
 
-      {/* Invalid URL */}
-      <Route path="*" element={<Navigate to="/" replace />} />
-
+      {/* Invalid Route */}
+      <Route
+        path="*"
+        element={<Navigate to="/employee-login" replace />}
+      />
     </Routes>
   );
 }
