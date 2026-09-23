@@ -9,14 +9,23 @@ router.post("/redirect", async (req, res) => {
     const {
       fiuID,
       userId,
+      pan,
+      dob,
       aaCustomerMobile,
       aaCustomerHandleId,
       useCaseid,
     } = req.body;
 
-    /* ---------------- Authentication ---------------- */
+    // Validation
+    if (!pan || !dob || !aaCustomerMobile) {
+      return res.status(400).json({
+        success: false,
+        message: "PAN, DOB and Mobile are required",
+      });
+    }
 
-    const auth = await axios.post(
+    // 1. CAMS Authentication
+    const authRes = await axios.post(
       `${process.env.CAMS_BASE_URL}/api/FIU/Authentication`,
       {
         fiuID: process.env.CAMS_FIU_ID,
@@ -25,17 +34,18 @@ router.post("/redirect", async (req, res) => {
       }
     );
 
-    const token = auth.data.token;
-    const sessionId = auth.data.sessionId;
+    const token = authRes.data.token;
+    const sessionId = authRes.data.sessionId;
 
-    /* ---------------- RedirectAA ---------------- */
-
-    const redirect = await axios.post(
+    // 2. CAMS RedirectAA
+    const redirectRes = await axios.post(
       `${process.env.CAMS_BASE_URL}/api/FIU/RedirectAA`,
       {
         clienttrnxid: crypto.randomUUID(),
         fiuID,
         userId,
+        pan,
+        dob,
         aaCustomerMobile,
         aaCustomerHandleId,
         sessionId,
@@ -50,13 +60,16 @@ router.post("/redirect", async (req, res) => {
       }
     );
 
-    return res.json({
+    // 3. Response to React
+    return res.status(200).json({
       success: true,
-      statusCode: 200,
       sessionId,
-      consentHandle: redirect.data.consentHandle,
-      redirectionurl: redirect.data.redirectionurl,
-      txnId: redirect.data.txnid,
+      consentHandle: redirectRes.data.consentHandle,
+      redirectionurl: redirectRes.data.redirectionurl,
+      txnId: redirectRes.data.txnid,
+      pan,
+      dob,
+      mobile: aaCustomerMobile,
     });
   } catch (err) {
     console.error("CAMS ERROR:", err.response?.data || err.message);

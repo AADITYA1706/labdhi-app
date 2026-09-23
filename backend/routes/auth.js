@@ -37,7 +37,7 @@ router.post("/login", async (req, res) => {
 
     const auth = authentication.data;
 
-    if (auth.statusCode !== "200" || !auth.sessionId || !auth.token) {
+    if (String(auth.statusCode) !== "200" || !auth.sessionId || !auth.token) {
       return res.status(401).json({
         success: false,
         message: auth.message || "CAMS Authentication Failed",
@@ -82,13 +82,16 @@ router.post("/login", async (req, res) => {
       },
     });
   } catch (err) {
-    console.log("CAMS LOGIN ERROR:", err.response?.data || err.message);
+    const upstreamMessage =
+      err.response?.data?.message ||
+      err.response?.data?.error ||
+      err.message;
 
-    return res.status(500).json({
+    console.error("CAMS LOGIN ERROR:", upstreamMessage);
+
+    return res.status(err.response?.status || 502).json({
       success: false,
-      message:
-        err.response?.data?.message ||
-        "Unable to connect to CAMS UAT",
+      message: `CAMS UAT request failed: ${upstreamMessage}`,
     });
   }
 });

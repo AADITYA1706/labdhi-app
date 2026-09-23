@@ -3,29 +3,24 @@ const bcrypt = require("bcrypt");
 const db = require("../db");
 
 const router = express.Router();
-const DEMO_EMPLOYEE = {
-  username: "kunalr@labdhi.in",
-  password: "Admin@12",
-  employeeId: "EMP001",
-  fullname: "Kunal Labdhi",
-  department: "Banking",
-};
 
-/* ==========================================
-   TEST ROUTE
+/* =====================================================
+   TEST API
    GET /api/employee/test
-========================================== */
+===================================================== */
+
 router.get("/test", (req, res) => {
-  res.json({
+  return res.json({
     success: true,
     message: "Employee API Working",
   });
 });
 
-/* ==========================================
+/* =====================================================
    EMPLOYEE SIGNUP
    POST /api/employee/signup
-========================================== */
+===================================================== */
+
 router.post("/signup", async (req, res) => {
   try {
     const {
@@ -49,10 +44,14 @@ router.post("/signup", async (req, res) => {
       });
     }
 
-    // Duplicate Employee ID / Email check
-    const [exist] = await db.query(
-      "SELECT id FROM employees WHERE employee_id = ? OR username = ?",
-      [employee_id, username]
+    const email = username.trim().toLowerCase();
+
+    // Duplicate check
+    const [exist] = await db.execute(
+      `SELECT id
+       FROM employees
+       WHERE employee_id = ? OR LOWER(username) = ?`,
+      [employee_id, email]
     );
 
     if (exist.length > 0) {
@@ -62,11 +61,11 @@ router.post("/signup", async (req, res) => {
       });
     }
 
-    // Password Hash
+    // Hash password
     const passwordHash = await bcrypt.hash(password, 10);
 
-    // Insert Employee
-    await db.query(
+    // Insert employee
+    await db.execute(
       `INSERT INTO employees
       (employee_id, full_name, department, username, password_hash)
       VALUES (?, ?, ?, ?, ?)`,
@@ -74,59 +73,59 @@ router.post("/signup", async (req, res) => {
         employee_id,
         full_name,
         department,
-        username,
+        email,
         passwordHash,
       ]
     );
 
-    res.json({
+    return res.status(201).json({
       success: true,
       message: "Employee account created successfully",
     });
 
   } catch (err) {
-    console.error("SIGNUP ERROR:", err);
+    console.error("========== SIGNUP ERROR ==========");
+    console.error(err);
+    console.error("Message:", err.message);
+    console.error("SQL:", err.sqlMessage);
+    console.error("================================");
 
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
-      message: "Unable to create employee account",
+      message: err.sqlMessage || err.message,
+      error: err.code || "UNKNOWN_ERROR",
     });
   }
 });
 
-/* ==========================================
+/* =====================================================
    EMPLOYEE LOGIN
    POST /api/employee/login
-========================================== */
+===================================================== */
+
 router.post("/login", async (req, res) => {
   try {
-    const username = String(req.body?.username || "").trim();
-    const password = String(req.body?.password || "");
+    const username = (req.body.username || "")
+      .trim()
+      .toLowerCase();
+
+    const password = req.body.password || "";
 
     if (!username || !password) {
       return res.status(400).json({
         success: false,
-        message: "Email & Password are required",
+        message: "Email & Password required",
       });
     }
 
-    if (
-      username.toLowerCase() === DEMO_EMPLOYEE.username &&
-      password === DEMO_EMPLOYEE.password
-    ) {
-      return res.json({
-        success: true,
-        data: {
-          userId: DEMO_EMPLOYEE.username,
-          employeeId: DEMO_EMPLOYEE.employeeId,
-          fullname: DEMO_EMPLOYEE.fullname,
-          department: DEMO_EMPLOYEE.department,
-        },
-      });
-    }
-
-    const [rows] = await db.query(
-      "SELECT * FROM employees WHERE LOWER(username) = LOWER(?)",
+    const [rows] = await db.execute(
+      `SELECT employee_id,
+              full_name,
+              department,
+              username,
+              password_hash
+       FROM employees
+       WHERE LOWER(username) = ?`,
       [username]
     );
 
@@ -139,20 +138,21 @@ router.post("/login", async (req, res) => {
 
     const employee = rows[0];
 
-    const match = await bcrypt.compare(
+    const isMatch = await bcrypt.compare(
       password,
       employee.password_hash
     );
 
-    if (!match) {
+    if (!isMatch) {
       return res.status(401).json({
         success: false,
         message: "Invalid Email or Password",
       });
     }
 
-    res.json({
+    return res.json({
       success: true,
+      message: "Login Successful",
       data: {
         userId: employee.username,
         employeeId: employee.employee_id,
@@ -162,11 +162,16 @@ router.post("/login", async (req, res) => {
     });
 
   } catch (err) {
-    console.error("LOGIN ERROR:", err);
+    console.error("========== LOGIN ERROR ==========");
+    console.error(err);
+    console.error("Message:", err.message);
+    console.error("SQL:", err.sqlMessage);
+    console.error("================================");
 
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
-      message: "Login Failed",
+      message: err.sqlMessage || err.message,
+      error: err.code || "UNKNOWN_ERROR",
     });
   }
 });

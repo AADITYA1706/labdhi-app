@@ -1,9 +1,11 @@
 const express = require("express");
 const cors = require("cors");
 const path = require("path");
+const dotenv = require("dotenv");
 
-require("dotenv").config({
-  path: path.resolve(__dirname, "../.env"),
+// Load .env from backend folder
+dotenv.config({
+  path: path.join(__dirname, ".env"),
 });
 
 const employeeRoutes = require("./routes/employee");
@@ -16,32 +18,12 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 /* ======================================
-   CORS (ALL LOCALHOST + LAN)
+   MIDDLEWARE
 ====================================== */
 
 app.use(
   cors({
-    origin: (origin, callback) => {
-      // Postman / Browser direct request
-      if (!origin) return callback(null, true);
-
-      // Allow localhost any port
-      if (/^http:\/\/localhost:\d+$/.test(origin)) {
-        return callback(null, true);
-      }
-
-      // Allow 127.0.0.1 any port
-      if (/^http:\/\/127\.0\.0\.1:\d+$/.test(origin)) {
-        return callback(null, true);
-      }
-
-      // Allow LAN IP any port
-      if (/^http:\/\/192\.168\.\d+\.\d+:\d+$/.test(origin)) {
-        return callback(null, true);
-      }
-
-      return callback(null, true);
-    },
+    origin: true,
     credentials: true,
   })
 );
@@ -53,11 +35,15 @@ app.use(express.json());
 ====================================== */
 
 app.get("/", (req, res) => {
-  res.send("🚀 Labdhi Banking Backend Running");
+  res.json({
+    success: true,
+    message: "Labdhi Banking Backend Running",
+    port: PORT,
+  });
 });
 
 /* ======================================
-   HEALTH
+   HEALTH CHECK
 ====================================== */
 
 app.get("/api/test", (req, res) => {
@@ -78,7 +64,7 @@ app.use("/api/cams", consentRoutes);
 app.use("/api/cams", fetchRoutes);
 
 /* ======================================
-   404
+   404 HANDLER
 ====================================== */
 
 app.use((req, res) => {
@@ -93,6 +79,6 @@ app.use((req, res) => {
    START SERVER
 ====================================== */
 
-app.listen(PORT, "0.0.0.0", () => {
+app.listen(PORT, () => {
   console.log(`🚀 Backend running on http://localhost:${PORT}`);
 });

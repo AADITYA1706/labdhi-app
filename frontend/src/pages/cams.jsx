@@ -5,16 +5,55 @@ import { useNavigate } from "react-router-dom";
 export default function Cams() {
   const navigate = useNavigate();
 
-  const [mobile, setMobile] = useState("");
+  const [form, setForm] = useState({
+    pan: "",
+    dob: "",
+    mobile: "",
+  });
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+
+    if (name === "mobile") {
+      setForm({
+        ...form,
+        mobile: value.replace(/\D/g, "").slice(0, 10),
+      });
+      return;
+    }
+
+    if (name === "pan") {
+      setForm({
+        ...form,
+        pan: value.toUpperCase(),
+      });
+      return;
+    }
+
+    setForm({ ...form, [name]: value });
+  };
 
   const continueToCAMS = async (e) => {
     e.preventDefault();
     setError("");
 
-    if (mobile.length !== 10) {
-      setError("Enter your registered mobile number");
+    const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
+
+    if (!panRegex.test(form.pan)) {
+      setError("Enter valid PAN number");
+      return;
+    }
+
+    if (form.mobile.length !== 10) {
+      setError("Enter registered mobile number");
+      return;
+    }
+
+    if (!form.dob) {
+      setError("Select Date of Birth");
       return;
     }
 
@@ -24,19 +63,17 @@ export default function Cams() {
       const userId = localStorage.getItem("userId");
 
       const res = await axios.post(
-        "http://localhost:5000/api/cams/redirect",
+        "/api/cams/redirect",
         {
           fiuID: "Labdhi_UAT",
           userId,
-          aaCustomerMobile: mobile,
-          aaCustomerHandleId: `${mobile}@CAMSAA`,
+          pan: form.pan,
+          dob: form.dob,
+          aaCustomerMobile: form.mobile,
+          aaCustomerHandleId: `${form.mobile}@CAMSAA`,
           useCaseid: "1656",
         }
       );
-
-      if (!res.data) {
-        throw new Error("Unable to connect CAMS");
-      }
 
       const redirectUrl = res.data.redirectionurl;
 
@@ -44,21 +81,13 @@ export default function Cams() {
         throw new Error("CAMS did not return a consent URL");
       }
 
-      localStorage.setItem("mobile", mobile);
+      localStorage.setItem("pan", form.pan);
+      localStorage.setItem("dob", form.dob);
+      localStorage.setItem("mobile", form.mobile);
       localStorage.setItem("sessionId", res.data.sessionId);
       localStorage.setItem("consentHandle", res.data.consentHandle);
-      localStorage.setItem("redirectUrl", redirectUrl);
-      localStorage.setItem("camsData", JSON.stringify({
-        userId,
-        sessionId: res.data.sessionId,
-        consentHandle: res.data.consentHandle,
-        redirectionurl: redirectUrl,
-        aaCustomerMobile: mobile,
-        aaCustomerHandleId: `${mobile}@CAMSAA`,
-        txnId: res.data.txnId,
-      }));
 
-      window.location.assign(redirectUrl);
+      window.location.href = redirectUrl;
     } catch (err) {
       setError(
         err.response?.data?.message || "Unable to connect CAMS"
@@ -77,20 +106,37 @@ export default function Cams() {
         <h1 className="title">CAMS Finserv</h1>
 
         <p className="subtitle">
-          Enter your registered mobile number to continue
+          Enter your PAN, DOB & Registered Mobile
         </p>
 
         <form className="login-form" onSubmit={continueToCAMS}>
 
           <input
+            type="text"
+            name="pan"
+            className="input"
+            placeholder="PAN Number"
+            maxLength={10}
+            value={form.pan}
+            onChange={handleChange}
+          />
+
+          <input
+            type="date"
+            name="dob"
+            className="input"
+            value={form.dob}
+            onChange={handleChange}
+          />
+
+          <input
             type="tel"
+            name="mobile"
             className="input"
             placeholder="Registered Mobile Number"
             maxLength={10}
-            value={mobile}
-            onChange={(e) =>
-              setMobile(e.target.value.replace(/\D/g, ""))
-            }
+            value={form.mobile}
+            onChange={handleChange}
           />
 
           <button className="btn" disabled={loading}>
