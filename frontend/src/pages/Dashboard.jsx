@@ -1,111 +1,146 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
+import { useNavigate } from "react-router-dom";
 
 export default function Dashboard() {
+  const navigate = useNavigate();
+
   const [data, setData] = useState({
     accounts: [],
     transactions: [],
     dmat: [],
     insurance: [],
   });
-  const [loading, setLoading] = useState(true);
 
-  const fullname = localStorage.getItem("fullname") || "CAMS User";
+  const [loading, setLoading] = useState(true);
+  const [checking, setChecking] = useState(false);
+
+  const fullname = localStorage.getItem("fullname") || "Employee";
 
   useEffect(() => {
-    const fetchDashboardData = async () => {
+    const loadDashboard = async () => {
       try {
-        const camsData = JSON.parse(localStorage.getItem("camsData")) || {};
+        const camsData =
+          JSON.parse(localStorage.getItem("camsData")) || {};
 
         const payload = {
           sessionId: camsData.sessionId || "",
-          userId: camsData.userId || "kunalr@labdhi.in",
-          consentId: localStorage.getItem("consentId") || camsData.consentId || "",
-          aaCustomerHandleId: camsData.aaCustomerHandleId || "9940353097@CAMSAA",
-          aaCustomerMobile: camsData.aaCustomerMobile || "9940353097",
+          userId: camsData.userId || "",
+          consentId:
+            localStorage.getItem("consentId") ||
+            camsData.consentId ||
+            "",
+          aaCustomerHandleId:
+            camsData.aaCustomerHandleId || "",
+          aaCustomerMobile:
+            camsData.aaCustomerMobile || "",
         };
 
-        const res = await axios.post("http://localhost:5000/api/auth/dashboard-data", payload);
-        const apiData = res.data?.data || {};
+        const res = await axios.post(
+          "http://localhost:5000/api/auth/dashboard-data",
+          payload
+        );
 
-        const consentStatus = apiData.consentStatus || {};
-        const consentData = apiData.consentData || {};
-        const periodicData = apiData.periodicData || {};
+        const api = res.data?.data || {};
 
-        const accounts =
-          periodicData.accounts ||
-          consentData.accounts ||
-          consentStatus.accounts ||
-          [];
-
-        const transactions =
-          periodicData.transactions ||
-          consentData.transactions ||
-          consentStatus.transactions ||
-          [];
-
-        const dmat =
-          periodicData.dmat ||
-          consentData.dmat ||
-          consentStatus.dmat ||
-          [];
-
-        const insurance =
-          periodicData.insurance ||
-          consentData.insurance ||
-          consentStatus.insurance ||
-          [];
-
-        setData({ accounts, transactions, dmat, insurance });
-
-        if (consentStatus.consentHandle) {
-          localStorage.setItem("consentId", consentStatus.consentHandle);
-        }
+        setData({
+          accounts: api.accounts || [],
+          transactions: api.transactions || [],
+          dmat: api.dmat || [],
+          insurance: api.insurance || [],
+        });
       } catch (err) {
-        console.error("Dashboard fetch failed:", err);
+        console.log(err);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchDashboardData();
+    loadDashboard();
   }, []);
 
-  const totalBalance = (data.accounts || []).reduce(
+  const checkConsent = async () => {
+    try {
+      setChecking(true);
+
+      const sessionId = localStorage.getItem("sessionId");
+      const consentHandle =
+        localStorage.getItem("consentHandle");
+      const token = localStorage.getItem("camsToken");
+
+      const res = await axios.post(
+        "http://localhost:5000/api/cams/status",
+        {
+          sessionId,
+          consentHandle,
+          token,
+        }
+      );
+
+      if (res.data.success) {
+        localStorage.setItem(
+          "consentId",
+          res.data.consentId
+        );
+
+        navigate("/banking");
+      } else {
+        alert("Consent not approved yet.");
+      }
+    } catch (err) {
+      console.log(err);
+      alert("Unable to verify consent.");
+    } finally {
+      setChecking(false);
+    }
+  };
+
+  const totalBalance = data.accounts.reduce(
     (sum, acc) => sum + Number(acc.balance || 0),
     0
   );
 
-  const monthlyIncome = (data.transactions || [])
+  const monthlyIncome = data.transactions
     .filter((t) => Number(t.amount) > 0)
     .reduce((sum, t) => sum + Number(t.amount), 0);
 
   if (loading) {
     return (
       <div className="page-stack">
-        <div className="loading-box">Loading dashboard data...</div>
+        <div className="loading-box">
+          Loading Dashboard...
+        </div>
       </div>
     );
   }
 
   return (
     <div className="page-stack">
-      {/* Header */}
+
       <div className="page-header">
         <div>
           <h1>Labdhi Banking Dashboard</h1>
-          <p>Welcome back, {fullname}</p>
+          <p>Welcome, {fullname}</p>
         </div>
+
+        <button
+          className="btn"
+          onClick={checkConsent}
+          disabled={checking}
+        >
+          {checking
+            ? "Checking..."
+            : "Check Consent & Continue"}
+        </button>
       </div>
 
-      {/* Summary Cards */}
       <div className="stats-grid">
         <div className="stat-card accent">
           <span>Total Balance</span>
           <strong>
             ₹ {totalBalance.toLocaleString("en-IN")}
           </strong>
-          <small>Across all linked accounts</small>
+          <small>Across linked accounts</small>
         </div>
 
         <div className="stat-card">
@@ -113,157 +148,145 @@ export default function Dashboard() {
           <strong>
             ₹ {monthlyIncome.toLocaleString("en-IN")}
           </strong>
-          <small>Current month credits</small>
+          <small>Credits</small>
         </div>
 
         <div className="stat-card">
-          <span>Credit Score</span>
-          <strong>785</strong>
-          <small>Excellent profile</small>
+          <span>Linked Accounts</span>
+          <strong>{data.accounts.length}</strong>
+          <small>Bank Accounts</small>
         </div>
       </div>
 
-      {/* Banking + Transactions */}
-      <div className="content-grid">
-        <section className="panel">
-          <div className="panel-header">
-            <h3>Bank Accounts</h3>
-            <span className="tag">
-              {data.accounts.length} Linked
-            </span>
-          </div>
-
-          <div className="card-list">
-            {data.accounts.length === 0 ? (
-              <div className="mini-card">
-                No Bank Accounts Found
-              </div>
-            ) : (
-              data.accounts.map((acc, i) => (
-                <div key={i} className="mini-card">
-                  <div className="mini-card-top">
-                    <strong>{acc.bankName}</strong>
-                    <span className="tag muted">
-                      {acc.accountType || "Savings"}
-                    </span>
-                  </div>
-
-                  <small>{acc.accountNumber}</small>
-
-                  <h2>
-                    ₹{" "}
-                    {Number(acc.balance).toLocaleString(
-                      "en-IN"
-                    )}
-                  </h2>
-                </div>
-              ))
-            )}
-          </div>
-        </section>
-
-        <section className="panel">
-          <div className="panel-header">
-            <h3>Recent Transactions</h3>
-          </div>
-
-          <ul className="transaction-list">
-            {data.transactions.length === 0 ? (
-              <li>No Transactions</li>
-            ) : (
-              data.transactions.map((tx, i) => (
-                <li key={i}>
-                  <div>
-                    <strong>{tx.title}</strong>
-                    <small>{tx.date}</small>
-                  </div>
-
-                  <span
-                    className={
-                      Number(tx.amount) >= 0
-                        ? "credit"
-                        : "debit"
-                    }
-                  >
-                    ₹ {Number(tx.amount).toLocaleString("en-IN")}
-                  </span>
-                </li>
-              ))
-            )}
-          </ul>
-        </section>
-      </div>
-
-      {/* DMAT */}
       <section className="panel">
         <div className="panel-header">
-          <h3>DMAT Holdings</h3>
-          <span className="tag">
-            {data.dmat.length} Holdings
-          </span>
+          <h3>Bank Accounts</h3>
         </div>
 
         <div className="account-grid">
-          {data.dmat.length === 0 ? (
+          {data.accounts.length === 0 ? (
             <div className="account-card">
-              No Holdings Available
+              No Accounts Found
             </div>
           ) : (
-            data.dmat.map((item, i) => (
-              <div key={i} className="account-card">
-                <div className="account-topline">
-                  <strong>{item.securityName}</strong>
-                  <span className="tag muted">
-                    Qty {item.quantity}
-                  </span>
-                </div>
+            data.accounts.map((acc, i) => (
+              <div
+                key={i}
+                className="account-card"
+              >
+                <strong>{acc.bankName}</strong>
+                <small>{acc.accountNumber}</small>
 
                 <h2>
                   ₹{" "}
-                  {Number(item.currentValue).toLocaleString(
-                    "en-IN"
-                  )}
+                  {Number(
+                    acc.balance
+                  ).toLocaleString("en-IN")}
                 </h2>
 
-                <small>Current Market Value</small>
+                <span>{acc.accountType}</span>
               </div>
             ))
           )}
         </div>
       </section>
 
-      {/* Insurance */}
       <section className="panel">
         <div className="panel-header">
-          <h3>Insurance Policies</h3>
-          <span className="tag">
-            {data.insurance.length} Active
-          </span>
+          <h3>Recent Transactions</h3>
+        </div>
+
+        <ul className="transaction-list">
+          {data.transactions.length === 0 ? (
+            <li>No Transactions</li>
+          ) : (
+            data.transactions.map((tx, i) => (
+              <li key={i}>
+                <div>
+                  <strong>{tx.title}</strong>
+                  <small>{tx.date}</small>
+                </div>
+
+                <span
+                  className={
+                    Number(tx.amount) >= 0
+                      ? "credit"
+                      : "debit"
+                  }
+                >
+                  ₹{" "}
+                  {Number(
+                    tx.amount
+                  ).toLocaleString("en-IN")}
+                </span>
+              </li>
+            ))
+          )}
+        </ul>
+      </section>
+
+      <section className="panel">
+        <div className="panel-header">
+          <h3>DMAT Holdings</h3>
+        </div>
+
+        <div className="account-grid">
+          {data.dmat.length === 0 ? (
+            <div className="account-card">
+              No Holdings
+            </div>
+          ) : (
+            data.dmat.map((item, i) => (
+              <div
+                key={i}
+                className="account-card"
+              >
+                <strong>{item.securityName}</strong>
+
+                <h2>
+                  ₹{" "}
+                  {Number(
+                    item.currentValue
+                  ).toLocaleString("en-IN")}
+                </h2>
+
+                <small>
+                  Qty : {item.quantity}
+                </small>
+              </div>
+            ))
+          )}
+        </div>
+      </section>
+
+      <section className="panel">
+        <div className="panel-header">
+          <h3>Insurance</h3>
         </div>
 
         <div className="account-grid">
           {data.insurance.length === 0 ? (
-            <div className="account-card insurance-card">
-              No Insurance Policies
+            <div className="account-card">
+              No Insurance
             </div>
           ) : (
             data.insurance.map((p, i) => (
               <div
                 key={i}
-                className="account-card insurance-card"
+                className="account-card"
               >
                 <strong>{p.policyName}</strong>
 
                 <h2>
                   ₹{" "}
-                  {Number(p.coverage).toLocaleString("en-IN")}
+                  {Number(
+                    p.coverage
+                  ).toLocaleString("en-IN")}
                 </h2>
 
-                <small>Coverage Amount</small>
-
-                <span className="tag muted">
-                  Premium ₹ {p.premium}
-                </span>
+                <small>
+                  Premium : ₹ {p.premium}
+                </small>
               </div>
             ))
           )}

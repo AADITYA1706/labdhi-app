@@ -4,10 +4,10 @@ const db = require("../db");
 
 const router = express.Router();
 
-/* =====================================================
+/* ==========================================
    TEST API
    GET /api/employee/test
-===================================================== */
+========================================== */
 
 router.get("/test", (req, res) => {
   return res.json({
@@ -16,10 +16,10 @@ router.get("/test", (req, res) => {
   });
 });
 
-/* =====================================================
+/* ==========================================
    EMPLOYEE SIGNUP
    POST /api/employee/signup
-===================================================== */
+========================================== */
 
 router.post("/signup", async (req, res) => {
   try {
@@ -84,11 +84,12 @@ router.post("/signup", async (req, res) => {
     });
 
   } catch (err) {
-    console.error("========== SIGNUP ERROR ==========");
-    console.error(err);
-    console.error("Message:", err.message);
-    console.error("SQL:", err.sqlMessage);
-    console.error("================================");
+    console.log("\n========== SIGNUP ERROR ==========");
+    console.log(err);
+    console.log("Message :", err.message);
+    console.log("SQL     :", err.sqlMessage);
+    console.log("Code    :", err.code);
+    console.log("=================================\n");
 
     return res.status(500).json({
       success: false,
@@ -98,18 +99,18 @@ router.post("/signup", async (req, res) => {
   }
 });
 
-/* =====================================================
+/* ==========================================
    EMPLOYEE LOGIN
    POST /api/employee/login
-===================================================== */
+========================================== */
 
 router.post("/login", async (req, res) => {
   try {
-    const username = (req.body.username || "")
+    const username = String(req.body?.username || "")
       .trim()
       .toLowerCase();
 
-    const password = req.body.password || "";
+    const password = String(req.body?.password || "");
 
     if (!username || !password) {
       return res.status(400).json({
@@ -119,13 +120,14 @@ router.post("/login", async (req, res) => {
     }
 
     const [rows] = await db.execute(
-      `SELECT employee_id,
-              full_name,
-              department,
-              username,
-              password_hash
+      `SELECT
+          employee_id,
+          full_name,
+          department,
+          username,
+          password_hash
        FROM employees
-       WHERE LOWER(username) = ?`,
+       WHERE LOWER(username)=?`,
       [username]
     );
 
@@ -138,12 +140,16 @@ router.post("/login", async (req, res) => {
 
     const employee = rows[0];
 
-    const isMatch = await bcrypt.compare(
-      password,
-      employee.password_hash
-    );
+    if (!employee.password_hash) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid Email or Password",
+      });
+    }
 
-    if (!isMatch) {
+    const match = await bcrypt.compare(password, employee.password_hash);
+
+    if (!match) {
       return res.status(401).json({
         success: false,
         message: "Invalid Email or Password",
@@ -162,11 +168,12 @@ router.post("/login", async (req, res) => {
     });
 
   } catch (err) {
-    console.error("========== LOGIN ERROR ==========");
-    console.error(err);
-    console.error("Message:", err.message);
-    console.error("SQL:", err.sqlMessage);
-    console.error("================================");
+    console.log("\n========== LOGIN ERROR ==========");
+    console.log(err);
+    console.log("Message :", err.message);
+    console.log("SQL     :", err.sqlMessage);
+    console.log("Code    :", err.code);
+    console.log("================================\n");
 
     return res.status(500).json({
       success: false,

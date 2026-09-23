@@ -15,17 +15,20 @@ export default function EmployeeLogin() {
     setError("");
 
     if (!username || !password) {
-      setError("Please enter email and password");
+      setError("Please enter your email and password");
       return;
     }
 
     try {
       setLoading(true);
 
-      const res = await axios.post("/api/employee/login", {
-        username: username.trim(),
-        password,
-      });
+      const res = await axios.post(
+        "/api/employee/login",
+        {
+          username: username.trim().toLowerCase(),
+          password,
+        }
+      );
 
       if (!res.data.success) {
         setError(res.data.message);
@@ -34,15 +37,26 @@ export default function EmployeeLogin() {
 
       const emp = res.data.data;
 
+      // Employee Session
       localStorage.setItem("employeeLoggedIn", "true");
+      localStorage.setItem("userId", emp.userId);
       localStorage.setItem("employeeId", emp.employeeId);
       localStorage.setItem("fullname", emp.fullname);
       localStorage.setItem("department", emp.department);
       localStorage.setItem("employeeEmail", emp.userId);
 
-      navigate("/cams-login");
+      // Clear old CAMS session
+      localStorage.removeItem("sessionId");
+      localStorage.removeItem("consentId");
+      localStorage.removeItem("consentHandle");
+      localStorage.removeItem("camsToken");
+      localStorage.removeItem("camsData");
+
+      navigate("/cams");
     } catch (err) {
-      setError(err.response?.data?.message || "Employee Login Failed");
+      setError(
+        err.response?.data?.message || "Employee Login Failed"
+      );
     } finally {
       setLoading(false);
     }
@@ -51,13 +65,17 @@ export default function EmployeeLogin() {
   return (
     <div className="login-page">
       <div className="login-card">
+
         <div className="logo">L</div>
 
         <h1 className="title">Employee Login</h1>
 
-        <p className="subtitle">Sign in using your Labdhi employee account</p>
+        <p className="subtitle">
+          Sign in using your Labdhi employee account
+        </p>
 
         <form className="login-form" onSubmit={handleLogin}>
+
           <input
             type="email"
             className="input"
@@ -76,20 +94,35 @@ export default function EmployeeLogin() {
             required
           />
 
-          <button type="submit" className="btn" disabled={loading}>
+          <button
+            type="submit"
+            className="btn"
+            disabled={loading}
+          >
             {loading ? "Signing In..." : "Sign In"}
           </button>
 
-          {error && <p className="error-message">{error}</p>}
+          {error && (
+            <p className="error-message">{error}</p>
+          )}
+
         </form>
 
-        <div style={{ marginTop: "18px", textAlign: "center" }}>
-          <p className="footer-text">Don't have an employee account?</p>
+        <div
+          style={{
+            marginTop: 18,
+            textAlign: "center",
+          }}
+        >
+          <p className="footer-text">
+            Don't have an employee account?
+          </p>
 
           <Link to="/signup" className="logout-btn">
             Create Employee Account
           </Link>
         </div>
+
       </div>
     </div>
   );

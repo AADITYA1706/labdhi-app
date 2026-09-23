@@ -1,15 +1,15 @@
 import {
   Routes,
   Route,
-  NavLink,
   Navigate,
+  NavLink,
   useNavigate,
 } from "react-router-dom";
 
 import EmployeeLogin from "./pages/EmployeeLogin";
-import Signup from "./pages/Signup";
+import Signup from "./pages/signup";
 import Login from "./pages/login";
-import Cams from "./pages/cams";
+import Cams from "./pages/Cams";
 import Otp from "./pages/otp";
 import Dashboard from "./pages/Dashboard";
 import Banking from "./pages/Banking";
@@ -17,8 +17,9 @@ import Insurance from "./pages/Insurance";
 
 import "./App.css";
 
-/* ================= Employee Protection ================= */
-
+/* =========================
+   Employee Protection
+========================= */
 function EmployeeProtected({ children }) {
   const employee = localStorage.getItem("employeeLoggedIn");
 
@@ -29,10 +30,13 @@ function EmployeeProtected({ children }) {
   return children;
 }
 
-/* ================= CAMS Consent Protection ================= */
-
+/* =========================
+   Consent Protection
+========================= */
 function ConsentProtected({ children }) {
-  const consent = localStorage.getItem("camsConsent");
+  const consent =
+    localStorage.getItem("consentId") ||
+    localStorage.getItem("camsConsent");
 
   if (!consent) {
     return <Navigate to="/cams" replace />;
@@ -41,8 +45,9 @@ function ConsentProtected({ children }) {
   return children;
 }
 
-/* ================= Sidebar ================= */
-
+/* =========================
+   Sidebar Layout
+========================= */
 function AppShell({ children }) {
   const navigate = useNavigate();
 
@@ -50,7 +55,7 @@ function AppShell({ children }) {
     localStorage.getItem("fullname") || "Employee";
 
   const department =
-    localStorage.getItem("department") || "Department";
+    localStorage.getItem("department") || "Banking";
 
   const logout = () => {
     localStorage.clear();
@@ -117,27 +122,27 @@ function AppShell({ children }) {
   );
 }
 
-/* ================= Main App ================= */
+/* =========================
+   Main App
+========================= */
 
 export default function App() {
   return (
     <Routes>
-      {/* Employee Login */}
-      <Route
-        path="/employee-login"
-        element={<EmployeeLogin />}
-      />
-
-      {/* Employee Signup */}
-      <Route path="/signup" element={<Signup />} />
-
       {/* Default */}
       <Route
         path="/"
         element={<Navigate to="/employee-login" replace />}
       />
 
-      {/* CAMS Login */}
+      {/* Employee */}
+      <Route
+        path="/employee-login"
+        element={<EmployeeLogin />}
+      />
+      <Route path="/signup" element={<Signup />} />
+
+      {/* CAMS */}
       <Route
         path="/cams-login"
         element={
@@ -147,7 +152,6 @@ export default function App() {
         }
       />
 
-      {/* Mobile Number */}
       <Route
         path="/cams"
         element={
@@ -157,7 +161,6 @@ export default function App() {
         }
       />
 
-      {/* OTP */}
       <Route
         path="/otp"
         element={
